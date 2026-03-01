@@ -503,10 +503,9 @@ register_whm_plugin() {
     chmod 755 "${whm_cgi_dir}/index.cgi"
     chown root:root "${whm_cgi_dir}/index.cgi"
 
-    # Copy plugin icon to WHM icon directory
-    local icon_dir="${CPANEL_BASE}/whostmgr/docroot/themes/x3/icons/plugin-icons"
-    mkdir -p "${icon_dir}"
-    cp "${SCRIPT_DIR}/cpanel-plugin/jupiter/icon.svg" "${icon_dir}/supervisormanager.svg" 2>/dev/null || true
+    # Copy plugin icon to the CGI dir (referenced as /cgi/supervisormanager/icon.svg)
+    cp "${SCRIPT_DIR}/cpanel-plugin/jupiter/icon.svg" "${whm_cgi_dir}/icon.svg"
+    chmod 644 "${whm_cgi_dir}/icon.svg"
 
     # Modern cPanel (11.44+): register via individual conf file in whmplugins/ directory
     local whm_plugins_dir="${CPANEL_BASE}/whostmgr/conf/whmplugins"
@@ -523,6 +522,15 @@ register_whm_plugin() {
         else
             info "Legacy WHMModule entry already present in ${whm_conf}"
         fi
+    fi
+
+    # Restart cpsrvd so WHM picks up the new plugin navigation entry
+    if [[ -x "${CPANEL_BASE}/init/cpaneld" ]]; then
+        "${CPANEL_BASE}/init/cpaneld" restart >> "${LOG_FILE}" 2>&1 || \
+            warn "cpsrvd restart failed — you may need to restart it manually for WHM menu to update"
+        success "cpsrvd restarted — WHM menu will now include the plugin"
+    else
+        warn "Could not restart cpsrvd automatically — run: service cpanel restart"
     fi
 
     success "WHM plugin registered"
