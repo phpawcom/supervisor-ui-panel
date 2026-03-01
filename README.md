@@ -82,7 +82,25 @@ supervisor-ui-panel/
 | Supervisor | 4.0+ |
 | Composer | 2.x |
 
-### Quick Install
+### Quick Install (one command)
+
+SSH into your cPanel server as root and run:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/phpawcom/supervisor-ui-panel/main/remote-install.sh)
+```
+
+Or with `wget` if `curl` is not available:
+
+```bash
+bash <(wget -qO- https://raw.githubusercontent.com/phpawcom/supervisor-ui-panel/main/remote-install.sh)
+```
+
+That's it. The remote installer will clone the repository from GitHub, verify the download, and run the full installer automatically. No manual file copying required.
+
+### Manual Install (alternative)
+
+If the server has no internet access or you prefer a manual approach:
 
 ```bash
 # 1. Upload the plugin to the server
@@ -95,7 +113,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-The installer is **idempotent** — safe to run multiple times. All actions are logged to `/var/log/laravel_supervisor_plugin_install.log`.
+All installs are **idempotent** — safe to run multiple times. All actions are logged to `/var/log/laravel_supervisor_plugin_install.log`.
 
 ### What the installer does
 
