@@ -534,10 +534,15 @@ register_whm_plugin() {
 # ─── Composer install ─────────────────────────────────────────────────────────
 
 run_composer() {
-    info "Installing PHP dependencies…"
+    info "Installing PHP dependencies (using PHP ${PHP_BIN})…"
     cd "${INSTALL_DIR}"
 
-    COMPOSER_ALLOW_SUPERUSER=1 composer install \
+    local composer_bin
+    composer_bin=$(command -v composer) || die "Composer not found in PATH."
+
+    # Invoke Composer explicitly through the resolved PHP 8.4 binary so it
+    # never picks up a system default php (8.2, etc.) from the shell PATH.
+    COMPOSER_ALLOW_SUPERUSER=1 "${PHP_BIN}" "${composer_bin}" install \
         --no-dev --optimize-autoloader --no-interaction \
         >> "${LOG_FILE}" 2>&1 || die "Composer install failed. See ${LOG_FILE}"
 
