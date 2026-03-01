@@ -512,22 +512,22 @@ register_whm_plugin() {
     mkdir -p "${icon_dir}"
     cp "${SCRIPT_DIR}/cpanel-plugin/jupiter/icon.svg" "${icon_dir}/supervisormanager.svg" 2>/dev/null || true
 
-    # Register in WHM plugins conf
+    # Modern cPanel (11.44+): register via individual conf file in whmplugins/ directory
+    local whm_plugins_dir="${CPANEL_BASE}/whostmgr/conf/whmplugins"
+    mkdir -p "${whm_plugins_dir}"
+    cp "${SCRIPT_DIR}/whm-plugin/supervisormanager.conf" "${whm_plugins_dir}/supervisormanager.conf"
+    chmod 644 "${whm_plugins_dir}/supervisormanager.conf"
+    success "WHM plugin conf installed: ${whm_plugins_dir}/supervisormanager.conf"
+
+    # Legacy fallback: append WHMModule entry to whm_plugins.conf if it exists
     if [[ -f "${whm_conf}" ]]; then
         if ! grep -q "WHMModule=supervisormanager" "${whm_conf}"; then
             echo "WHMModule=supervisormanager" >> "${whm_conf}"
-            success "Added WHMModule entry to ${whm_conf}"
+            success "Added legacy WHMModule entry to ${whm_conf}"
         else
-            info "WHMModule already registered in ${whm_conf}"
+            info "Legacy WHMModule entry already present in ${whm_conf}"
         fi
-    else
-        warn "WHM plugins.conf not found at ${whm_conf} — manual registration may be needed"
     fi
-
-    # Also try the AppConfig registration path
-    local whm_appconfig="${CPANEL_BASE}/whostmgr/conf/apps/supervisormanager.conf"
-    mkdir -p "$(dirname "${whm_appconfig}")"
-    cp "${SCRIPT_DIR}/whm-plugin/supervisormanager.conf" "${whm_appconfig}"
 
     success "WHM plugin registered"
 }
