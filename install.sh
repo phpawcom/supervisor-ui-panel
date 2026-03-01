@@ -507,30 +507,32 @@ register_whm_plugin() {
     cp "${SCRIPT_DIR}/cpanel-plugin/jupiter/icon.svg" "${whm_cgi_dir}/icon.svg"
     chmod 644 "${whm_cgi_dir}/icon.svg"
 
-    # Modern cPanel (11.44+): register via individual conf file in whmplugins/ directory
-    local whm_plugins_dir="${CPANEL_BASE}/whostmgr/conf/whmplugins"
-    mkdir -p "${whm_plugins_dir}"
-    cp "${SCRIPT_DIR}/whm-plugin/supervisormanager.conf" "${whm_plugins_dir}/supervisormanager.conf"
-    chmod 644 "${whm_plugins_dir}/supervisormanager.conf"
-    success "WHM plugin conf installed: ${whm_plugins_dir}/supervisormanager.conf"
+    # Register via AppConfig: place conf directly in /var/cpanel/apps/
+    # (register_appconfig is skipped for root; we write the processed file directly)
+    local appconfig_dir="/var/cpanel/apps"
+    mkdir -p "${appconfig_dir}"
+    cp "${SCRIPT_DIR}/whm-plugin/supervisormanager.conf" "${appconfig_dir}/supervisormanager_whm.conf"
+    chmod 644 "${appconfig_dir}/supervisormanager_whm.conf"
+    success "WHM AppConfig entry installed: ${appconfig_dir}/supervisormanager_whm.conf"
 
-    # Legacy fallback: append WHMModule entry to whm_plugins.conf if it exists
-    if [[ -f "${whm_conf}" ]]; then
-        if ! grep -q "WHMModule=supervisormanager" "${whm_conf}"; then
-            echo "WHMModule=supervisormanager" >> "${whm_conf}"
-            success "Added legacy WHMModule entry to ${whm_conf}"
-        else
-            info "Legacy WHMModule entry already present in ${whm_conf}"
-        fi
+    # Also write whm_plugins.conf (create if it doesn't exist) for maximum compatibility
+    if ! grep -q "WHMModule=supervisormanager" "${whm_conf}" 2>/dev/null; then
+        echo "WHMModule=supervisormanager" >> "${whm_conf}"
+        success "WHMModule entry written to ${whm_conf}"
+    else
+        info "WHMModule entry already present in ${whm_conf}"
     fi
 
-    # Restart cpsrvd so WHM picks up the new plugin navigation entry
+    # Rebuild AppConfig registry and restart cpsrvd so WHM picks up the new entry
+    if [[ -x "${CPANEL_BASE}/bin/rebuild_spreg" ]]; then
+        "${CPANEL_BASE}/bin/rebuild_spreg" >> "${LOG_FILE}" 2>&1 || true
+    fi
     if [[ -x "${CPANEL_BASE}/init/cpaneld" ]]; then
         "${CPANEL_BASE}/init/cpaneld" restart >> "${LOG_FILE}" 2>&1 || \
-            warn "cpsrvd restart failed — you may need to restart it manually for WHM menu to update"
+            warn "cpsrvd restart failed — run manually: service cpanel restart"
         success "cpsrvd restarted — WHM menu will now include the plugin"
     else
-        warn "Could not restart cpsrvd automatically — run: service cpanel restart"
+        warn "Could not restart cpsrvd — run: service cpanel restart"
     fi
 
     success "WHM plugin registered"
