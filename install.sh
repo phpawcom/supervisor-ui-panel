@@ -48,10 +48,10 @@ preflight_checks() {
     command -v php     >/dev/null 2>&1 || die "PHP is not installed or not in PATH."
     command -v composer >/dev/null 2>&1 || die "Composer is not installed."
 
-    # Verify PHP version >= 8.2
+    # Verify PHP version >= 8.4
     PHP_VER=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;")
-    if [[ $(echo "$PHP_VER < 8.2" | bc -l 2>/dev/null || echo 0) -eq 1 ]]; then
-        die "PHP 8.2+ required. Found: $PHP_VER"
+    if [[ $(echo "$PHP_VER < 8.4" | bc -l 2>/dev/null || echo 0) -eq 1 ]]; then
+        die "PHP 8.4+ required. Found: ${PHP_VER}. Install PHP 8.4 (e.g. dnf install ea-php84) and ensure it is the active 'php' binary."
     fi
 
     # Check cPanel is installed
