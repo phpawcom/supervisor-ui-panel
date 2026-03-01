@@ -448,13 +448,14 @@ SVG
     mkdir -p "${appconfig_dir}"
     cp "${SCRIPT_DIR}/cpanel-plugin/supervisormanager.conf" "${appconfig_dir}/supervisormanager.conf"
 
-    # Register via register_appconfig if available
-    if [[ -x "${CPANEL_BASE}/bin/register_appconfig" ]]; then
-        "${CPANEL_BASE}/bin/register_appconfig" "${appconfig_dir}/supervisormanager.conf" >> "${LOG_FILE}" 2>&1 || \
-            warn "register_appconfig failed — plugin may need manual registration"
-        success "cPanel AppConfig registered"
+    # Rebuild the system-wide AppConfig registry so the conf file takes effect.
+    # register_appconfig is a per-user tool and intentionally skips UID 0 (root).
+    if [[ -x "${CPANEL_BASE}/bin/rebuild_spreg" ]]; then
+        "${CPANEL_BASE}/bin/rebuild_spreg" >> "${LOG_FILE}" 2>&1 || \
+            warn "rebuild_spreg failed — plugin may need manual registration"
+        success "cPanel AppConfig registry rebuilt"
     else
-        warn "register_appconfig not found — plugin registered via conf file only"
+        info "rebuild_spreg not found — conf file placed; registry will update on next cPanel restart"
     fi
 
     # Setup cPanel proxying for the plugin API
