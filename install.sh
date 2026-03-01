@@ -45,7 +45,8 @@ preflight_checks() {
 
     [[ $EUID -eq 0 ]] || die "This installer must be run as root."
 
-    command -v php >/dev/null 2>&1 || die "PHP is not installed or not in PATH."
+    command -v php     >/dev/null 2>&1 || die "PHP is not installed or not in PATH."
+    command -v composer >/dev/null 2>&1 || die "Composer is not installed."
 
     # Verify PHP version >= 8.2
     PHP_VER=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;")
@@ -464,80 +465,7 @@ register_whm_plugin() {
     success "WHM plugin registered"
 }
 
-# ─── Composer install / bootstrap ─────────────────────────────────────────────
-
-install_composer() {
-    if command -v composer >/dev/null 2>&1; then
-        info "Composer already installed: $(composer --version --no-ansi 2>/dev/null | head -1)"
-        return 0
-    fi
-
-    info "Composer not found — installing globally…"
-
-    # Detect a download tool
-    local dl_tool=""
-    if command -v curl >/dev/null 2>&1; then
-        dl_tool="curl"
-    elif command -v wget >/dev/null 2>&1; then
-        dl_tool="wget"
-    else
-        die "Neither curl nor wget is available. Cannot download Composer. Install one with: ${PKG_MGR} install curl"
-    fi
-
-    local tmp_dir
-    tmp_dir=$(mktemp -d)
-    local setup_script="${tmp_dir}/composer-setup.php"
-    local expected_sig_url="https://composer.github.io/installer.sig"
-    local installer_url="https://getcomposer.org/installer"
-
-    # Download the installer
-    info "Downloading Composer installer…"
-    if [[ "${dl_tool}" == "curl" ]]; then
-        curl -fsSL --connect-timeout 30 --retry 3 \
-             -o "${setup_script}" "${installer_url}" \
-             >> "${LOG_FILE}" 2>&1 || die "Failed to download Composer installer"
-
-        # Fetch and verify the expected SHA-384 hash
-        local expected_sig
-        expected_sig=$(curl -fsSL --connect-timeout 10 "${expected_sig_url}" 2>/dev/null || true)
-    else
-        wget -q --timeout=30 --tries=3 \
-             -O "${setup_script}" "${installer_url}" \
-             >> "${LOG_FILE}" 2>&1 || die "Failed to download Composer installer"
-
-        local expected_sig
-        expected_sig=$(wget -qO- --timeout=10 "${expected_sig_url}" 2>/dev/null || true)
-    fi
-
-    # Verify installer integrity (skip silently if hash fetch failed — network issues)
-    if [[ -n "${expected_sig}" ]]; then
-        local actual_sig
-        actual_sig=$(php -r "echo hash_file('sha384','${setup_script}');")
-        if [[ "${actual_sig}" != "${expected_sig}" ]]; then
-            rm -rf "${tmp_dir}"
-            die "Composer installer integrity check failed. Expected: ${expected_sig} Got: ${actual_sig}"
-        fi
-        info "Composer installer integrity verified"
-    else
-        warn "Could not fetch Composer installer signature — skipping hash verification"
-    fi
-
-    # Run the installer
-    info "Running Composer installer…"
-    php "${setup_script}" \
-        --install-dir=/usr/local/bin \
-        --filename=composer \
-        --quiet \
-        >> "${LOG_FILE}" 2>&1 || die "Composer installer failed. See ${LOG_FILE}"
-
-    rm -rf "${tmp_dir}"
-
-    # Confirm it worked
-    command -v composer >/dev/null 2>&1 \
-        || die "Composer installation succeeded but 'composer' is still not in PATH. Check /usr/local/bin."
-
-    success "Composer installed: $(composer --version --no-ansi 2>/dev/null | head -1)"
-}
+# ─── Composer install ─────────────────────────────────────────────────────────
 
 run_composer() {
     info "Installing PHP dependencies…"
@@ -613,7 +541,6 @@ main() {
     preflight_checks
     detect_os
     install_dependencies
-    install_composer
     create_directories
     deploy_plugin_files
     run_composer
