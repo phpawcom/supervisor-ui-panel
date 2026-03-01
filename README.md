@@ -395,4 +395,10 @@ User log files in `~/logs/supervisor/` are **preserved**.
 
 ## License
 
-MIT — see the `LICENSE` file.
+GNU General Public License v3.0 — see the `LICENSE` file.
+
+---
+
+## Credits
+
+Built with [Claude Code](https://claude.ai/claude-code) by Anthropic.
