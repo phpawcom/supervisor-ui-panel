@@ -436,13 +436,9 @@ register_cpanel_plugin() {
     chmod 644 "${jupiter_dir}/index.html"
     chown root:root "${jupiter_dir}/index.html"
 
-    # Copy plugin icon (or create a simple SVG placeholder)
-    mkdir -p "${jupiter_dir}"
-    cat > "${jupiter_dir}/icon.svg" <<'SVG'
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#0064a3">
-  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
-</svg>
-SVG
+    # Copy plugin icon
+    cp "${SCRIPT_DIR}/cpanel-plugin/jupiter/icon.svg" "${jupiter_dir}/icon.svg"
+    chmod 644 "${jupiter_dir}/icon.svg"
 
     # Register via AppConfig if available
     mkdir -p "${appconfig_dir}"

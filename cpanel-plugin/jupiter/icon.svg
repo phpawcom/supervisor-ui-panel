@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a6fc4"/>
+      <stop offset="100%" stop-color="#0047a3"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <!-- Subtle top gloss -->
+  <rect width="64" height="32" rx="12" fill="url(#glow)"/>
+
+  <!-- Supervisor node (top) -->
+  <circle cx="32" cy="17" r="8" fill="white" opacity="0.95"/>
+  <!-- S monogram inside supervisor node -->
+  <text x="32" y="21" text-anchor="middle" font-family="Arial, sans-serif"
+        font-weight="700" font-size="10" fill="#0064a3">S</text>
+
+  <!-- Stem from supervisor down -->
+  <line x1="32" y1="25" x2="32" y2="33" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Horizontal branch -->
+  <line x1="14" y1="33" x2="50" y2="33" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Vertical drops to worker nodes -->
+  <line x1="14" y1="33" x2="14" y2="40" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="32" y1="33" x2="32" y2="40" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="50" y1="33" x2="50" y2="40" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Worker node — Queue (left) -->
+  <circle cx="14" cy="47" r="7" fill="white" opacity="0.9"/>
+  <!-- Queue icon: 3 small horizontal bars -->
+  <rect x="10.5" y="44.5" width="7" height="1.5" rx="0.75" fill="#0064a3"/>
+  <rect x="10.5" y="47"   width="7" height="1.5" rx="0.75" fill="#0064a3"/>
+  <rect x="10.5" y="49.5" width="7" height="1.5" rx="0.75" fill="#0064a3"/>
+
+  <!-- Worker node — Scheduler (center) -->
+  <circle cx="32" cy="47" r="7" fill="white" opacity="0.9"/>
+  <!-- Clock icon -->
+  <circle cx="32" cy="47" r="3.5" fill="none" stroke="#0064a3" stroke-width="1.5"/>
+  <line x1="32" y1="44.5" x2="32" y2="47"   stroke="#0064a3" stroke-width="1.3" stroke-linecap="round"/>
+  <line x1="32" y1="47"   x2="34" y2="48.2" stroke="#0064a3" stroke-width="1.3" stroke-linecap="round"/>
+
+  <!-- Worker node — Reverb / WebSocket (right) -->
+  <circle cx="50" cy="47" r="7" fill="white" opacity="0.9"/>
+  <!-- Signal / wifi-like arcs -->
+  <path d="M47.2 49.5 Q50 44.5 52.8 49.5" fill="none" stroke="#0064a3" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M48.5 47.8 Q50 45.2 51.5 47.8" fill="none" stroke="#0064a3" stroke-width="1.4" stroke-linecap="round"/>
+  <circle cx="50" cy="50" r="1.1" fill="#0064a3"/>
+
+  <!-- Status indicator dot (green = running) -->
+  <circle cx="52" cy="12" r="5" fill="#22c55e"/>
+  <circle cx="52" cy="12" r="3" fill="#16a34a"/>
+</svg>
