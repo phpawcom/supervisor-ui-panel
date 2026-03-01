@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /Users/abdulazizalrashdi/Herd/supervisor-ui-panel/install.sh /Users/abdulazizalrashdi/Herd/supervisor-ui-panel/uninstall.sh /Users/abdulazizalrashdi/Herd/supervisor-ui-panel/scripts/supervisor_helper.php /Users/abdulazizalrashdi/Herd/supervisor-ui-panel/scripts/generate_token.php /Users/abdulazizalrashdi/Herd/supervisor-ui-panel/whm-plugin/index.cgi)",
+      "Bash(find app config database routes scripts -name '*.php' | sort | while read f; do php -l \"$f\" 2>&1 | grep -v \"No syntax errors\" | grep -v \"^$\" | sed \"s|^|  $f: |\"; done; echo \"PHP syntax check complete\")",
+      "Bash(find resources/views -name '*.blade.php' | sort | while read f; do php -l \"$f\" 2>&1 | grep -v \"No syntax errors\" | grep -v \"^$\" | sed \"s|^|  $f: |\"; done; echo \"Blade syntax check complete\")",
+      "Bash(php artisan route:list --path=cpanel 2>/dev/null | head -30)",
+      "Bash(php artisan route:list --path=whm 2>/dev/null)",
+      "Bash(php artisan migrate:status 2>/dev/null)"
+    ]
+  }
+}

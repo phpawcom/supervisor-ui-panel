@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisor Manager</title>
+
+    <!--
+        This file is the cPanel Jupiter theme entry point.
+        It is served directly by cPanel at:
+            https://hostname:2083/frontend/jupiter/supervisormanager/index.html
+        or via the registered AppConfig URL.
+
+        cPanel's template engine injects the Jupiter header/footer.
+        Authentication is already handled by cPanel before this page loads.
+
+        This file acts as a thin bridge: it reads the cPanel session data,
+        obtains an auth token, and redirects into the Laravel-powered plugin UI.
+    -->
+
+    <!-- Jupiter theme CSS (loaded from cPanel's document root) -->
+    <link rel="stylesheet" href="//{{SERVER_NAME}}:2083/themes/jupiter/css/master.css">
+
+    <style>
+        body        { display:flex; justify-content:center; align-items:center; min-height:60vh; font-family:Arial,sans-serif; }
+        .loading    { text-align:center; color:#555; }
+        .loading h3 { margin-bottom:8px; }
+        .spinner    { width:32px; height:32px; border:3px solid #ddd; border-top-color:#0064a3;
+                      border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 12px; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="loading">
+    <div class="spinner"></div>
+    <h3>Loading Supervisor Manager…</h3>
+    <p id="status-msg">Authenticating with cPanel…</p>
+</div>
+
+<script>
+/*
+ * cPanel Jupiter plugins receive session data via:
+ *   CPANEL.PAGE object (injected by cPanel template)
+ *   or window.CPANEL.security_token
+ *
+ * We use the cPanel UAPI to obtain a valid auth token for our plugin.
+ */
+
+(function () {
+    'use strict';
+
+    // The plugin API base URL (Laravel app endpoint)
+    // Installed at /usr/local/cpanel/3rdparty/laravel_supervisor_plugin/public
+    // Served via cPanel's proxying at /cpanel-plugins/supervisormanager/api/
+    const API_BASE = '/cpanel-plugins/supervisormanager/api';
+
+    function getStatus(msg) {
+        const el = document.getElementById('status-msg');
+        if (el) el.textContent = msg;
+    }
+
+    async function bootstrap() {
+        try {
+            // Step 1: Get the cPanel security token from the CPANEL global
+            // (injected by cPanel's template engine in the real deployment)
+            const cpanelUser  = (window.CPANEL && window.CPANEL.PAGE && window.CPANEL.PAGE.user)
+                                ? window.CPANEL.PAGE.user
+                                : extractUserFromCookie();
+
+            const secToken    = (window.CPANEL && window.CPANEL.security_token)
+                                ? window.CPANEL.security_token
+                                : '';
+
+            getStatus('Generating plugin token…');
+
+            // Step 2: Request a short-lived plugin token from our API
+            const res = await fetch(API_BASE + '/auth/token', {
+                method:  'POST',
+                headers: {
+                    'Content-Type':    'application/json',
+                    'Authorization':   'cpanel ' + cpanelUser + ':' + secToken,
+                    'Accept':          'application/json',
+                },
+                body: JSON.stringify({ user: cpanelUser }),
+            });
+
+            if (!res.ok) {
+                throw new Error('Auth failed: ' + res.status);
+            }
+
+            const data = await res.json();
+
+            if (!data.token) {
+                throw new Error('No token in response');
+            }
+
+            getStatus('Redirecting to dashboard…');
+
+            // Step 3: Redirect to the Laravel dashboard with the plugin token
+            window.location.replace(
+                API_BASE + '/cpanel/dashboard?_plugin_token=' + encodeURIComponent(data.token)
+            );
+
+        } catch (err) {
+            document.querySelector('.loading').innerHTML =
+                '<h3 style="color:#dc3545;">Authentication Failed</h3>' +
+                '<p>' + err.message + '</p>' +
+                '<p><a href="javascript:location.reload()">Try again</a></p>';
+        }
+    }
+
+    function extractUserFromCookie() {
+        // Try to extract cPanel user from document URL path (/cpsess.../frontend/..)
+        const match = window.location.pathname.match(/\/frontend\/[^/]+\/([^/]+)\//);
+        return match ? match[1] : '';
+    }
+
+    bootstrap();
+}());
+</script>
+</body>
+</html>
