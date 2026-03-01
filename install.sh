@@ -20,6 +20,7 @@ set -euo pipefail
 PLUGIN_NAME="laravel_supervisor_plugin"
 INSTALL_DIR="/usr/local/cpanel/3rdparty/${PLUGIN_NAME}"
 STORAGE_DIR="/var/cpanel/${PLUGIN_NAME}"
+PHP_BIN=""   # Resolved by resolve_php84(); used for every php invocation
 LOG_FILE="/var/log/${PLUGIN_NAME}_install.log"
 CPANEL_BASE="/usr/local/cpanel"
 PLUGIN_SECRET_FILE="${STORAGE_DIR}/plugin_secret"
@@ -45,20 +46,20 @@ preflight_checks() {
 
     [[ $EUID -eq 0 ]] || die "This installer must be run as root."
 
-    command -v php     >/dev/null 2>&1 || die "PHP is not installed or not in PATH."
-    command -v composer >/dev/null 2>&1 || die "Composer is not installed."
-
-    # Verify PHP version >= 8.4
-    PHP_VER=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;")
-    if [[ $(echo "$PHP_VER < 8.4" | bc -l 2>/dev/null || echo 0) -eq 1 ]]; then
-        die "PHP 8.4+ required. Found: ${PHP_VER}. Install PHP 8.4 (e.g. dnf install ea-php84) and ensure it is the active 'php' binary."
+    # PHP 8.4 is resolved (and installed if missing) by resolve_php84(),
+    # which runs after detect_os() sets PKG_MGR. Here we only confirm that
+    # *any* PHP binary exists so we can give a clear early error.
+    if ! command -v php >/dev/null 2>&1 && [[ ! -x "/opt/cpanel/ea-php84/root/usr/bin/php" ]]; then
+        die "No PHP binary found. Install PHP 8.4 via EasyApache: dnf install ea-php84 ea-php84-php-cli"
     fi
+
+    command -v composer >/dev/null 2>&1 || die "Composer is not installed."
 
     # Check cPanel is installed
     [[ -d "${CPANEL_BASE}" ]] || die "cPanel base directory not found: ${CPANEL_BASE}"
     [[ -f "${CPANEL_BASE}/version" ]] || warn "Cannot verify cPanel version file."
 
-    success "Pre-flight checks passed (PHP ${PHP_VER})"
+    success "Pre-flight checks passed"
 }
 
 # ─── OS detection ─────────────────────────────────────────────────────────────
@@ -94,6 +95,70 @@ detect_os() {
     else
         die "No supported package manager found (dnf/yum)."
     fi
+}
+
+# ─── Resolve / install PHP 8.4 ───────────────────────────────────────────────
+
+resolve_php84() {
+    info "Resolving PHP 8.4 binary…"
+
+    local ea_bin="/opt/cpanel/ea-php84/root/usr/bin/php"
+
+    # 1. Check if the current default 'php' is already 8.4
+    if command -v php >/dev/null 2>&1; then
+        local ver
+        ver=$(php -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;" 2>/dev/null)
+        if [[ "${ver}" == "8.4" ]]; then
+            PHP_BIN=$(command -v php)
+            success "PHP 8.4 found at: ${PHP_BIN} (${ver})"
+            return 0
+        fi
+        info "Default php binary is version ${ver} — looking for PHP 8.4…"
+    fi
+
+    # 2. Check if EA PHP 8.4 is already installed but not the default
+    if [[ -x "${ea_bin}" ]]; then
+        PHP_BIN="${ea_bin}"
+        local ver
+        ver=$("${PHP_BIN}" -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;" 2>/dev/null)
+        success "PHP 8.4 found at: ${PHP_BIN} (${ver})"
+        return 0
+    fi
+
+    # 3. Attempt to install EA PHP 8.4 via the package manager
+    info "PHP 8.4 not found — attempting to install ea-php84 via ${PKG_MGR}…"
+
+    local ea_packages=(
+        ea-php84
+        ea-php84-php-cli
+        ea-php84-php-common
+        ea-php84-php-mbstring
+        ea-php84-php-pdo
+        ea-php84-php-openssl
+        ea-php84-php-pcntl
+        ea-php84-php-posix
+        ea-php84-php-json
+    )
+
+    ${PKG_MGR} install -y "${ea_packages[@]}" >> "${LOG_FILE}" 2>&1 || {
+        # EA packages may not be available — fall back to non-EA php84 package name
+        warn "EasyApache ea-php84 not found in repos. Trying generic php84 package…"
+        ${PKG_MGR} install -y php84 php84-cli php84-mbstring php84-pdo >> "${LOG_FILE}" 2>&1 || \
+            die "Could not install PHP 8.4 automatically. Please install it manually and re-run the installer."
+    }
+
+    # Confirm the EA binary now exists
+    if [[ -x "${ea_bin}" ]]; then
+        PHP_BIN="${ea_bin}"
+    elif command -v php84 >/dev/null 2>&1; then
+        PHP_BIN=$(command -v php84)
+    else
+        die "PHP 8.4 was installed but the binary could not be located. Re-run the installer or set PHP_BIN manually."
+    fi
+
+    local ver
+    ver=$("${PHP_BIN}" -r "echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION;" 2>/dev/null)
+    success "PHP 8.4 installed and ready at: ${PHP_BIN} (${ver})"
 }
 
 # ─── Install system dependencies ─────────────────────────────────────────────
@@ -145,7 +210,7 @@ install_dependencies() {
     MISSING_EXTS=()
 
     for ext in "${PHP_EXTS_NEEDED[@]}"; do
-        if ! php -m 2>/dev/null | grep -qi "^${ext}$"; then
+        if ! "${PHP_BIN}" -m 2>/dev/null | grep -qi "^${ext}$"; then
             MISSING_EXTS+=("$ext")
         fi
     done
@@ -155,9 +220,10 @@ install_dependencies() {
         info "Attempting to install via ${PKG_MGR}…"
 
         for ext in "${MISSING_EXTS[@]}"; do
-            ${PKG_MGR} install -y "php-${ext}" 2>/dev/null || \
-            ${PKG_MGR} install -y "php82-php-${ext}" 2>/dev/null || \
-            warn "Could not auto-install php-${ext} — install manually"
+            ${PKG_MGR} install -y "ea-php84-php-${ext}" 2>/dev/null || \
+            ${PKG_MGR} install -y "php84-php-${ext}"    2>/dev/null || \
+            ${PKG_MGR} install -y "php-${ext}"          2>/dev/null || \
+            warn "Could not auto-install ${ext} — install ea-php84-php-${ext} manually"
         done
     fi
 
@@ -239,6 +305,7 @@ QUEUE_CONNECTION=sync
 SUPERVISOR_PLUGIN_STORAGE=${STORAGE_DIR}
 SUPERVISOR_CONF_DIR=${SUPERVISOR_CONF_DIR}
 SUPERVISOR_HELPER=${INSTALL_DIR}/scripts/supervisor_helper.php
+PLUGIN_PHP_BIN=${PHP_BIN}
 
 REVERB_PORT_START=20000
 REVERB_PORT_END=21000
@@ -251,7 +318,7 @@ ENV
 
     # Generate application key
     cd "${INSTALL_DIR}"
-    php artisan key:generate --force --no-interaction >> "${LOG_FILE}" 2>&1 || \
+    "${PHP_BIN}" artisan key:generate --force --no-interaction >> "${LOG_FILE}" 2>&1 || \
         warn "artisan key:generate failed — check manually"
 
     success "Plugin files deployed"
@@ -273,13 +340,13 @@ setup_database() {
 
     # Run migrations
     cd "${INSTALL_DIR}"
-    php artisan migrate --force --no-interaction >> "${LOG_FILE}" 2>&1 || \
+    "${PHP_BIN}" artisan migrate --force --no-interaction >> "${LOG_FILE}" 2>&1 || \
         die "Database migration failed. See ${LOG_FILE}"
 
     # Cache config for production performance
-    php artisan config:cache  --no-interaction >> "${LOG_FILE}" 2>&1 || warn "config:cache failed"
-    php artisan route:cache   --no-interaction >> "${LOG_FILE}" 2>&1 || warn "route:cache failed"
-    php artisan view:cache    --no-interaction >> "${LOG_FILE}" 2>&1 || warn "view:cache failed"
+    "${PHP_BIN}" artisan config:cache  --no-interaction >> "${LOG_FILE}" 2>&1 || warn "config:cache failed"
+    "${PHP_BIN}" artisan route:cache   --no-interaction >> "${LOG_FILE}" 2>&1 || warn "route:cache failed"
+    "${PHP_BIN}" artisan view:cache    --no-interaction >> "${LOG_FILE}" 2>&1 || warn "view:cache failed"
 
     success "Database migrations complete"
 }
@@ -315,8 +382,7 @@ setup_sudoers() {
     info "Configuring sudoers for privileged helper…"
 
     local sudoers_file="/etc/sudoers.d/laravel_supervisor_plugin"
-    local php_bin
-    php_bin=$(command -v php)
+    local php_bin="${PHP_BIN}"
     local helper="${INSTALL_DIR}/scripts/supervisor_helper.php"
 
     # The sudoers rule: allow the nobody/apache/www-data user to run the helper as root
@@ -514,7 +580,7 @@ verify_installation() {
 
     # Test artisan
     cd "${INSTALL_DIR}"
-    if php artisan --version >> "${LOG_FILE}" 2>&1; then
+    if "${PHP_BIN}" artisan --version >> "${LOG_FILE}" 2>&1; then
         success "Laravel artisan: OK"
     else
         error "artisan command failed"; errors=$((errors+1))
@@ -540,6 +606,7 @@ main() {
 
     preflight_checks
     detect_os
+    resolve_php84
     install_dependencies
     create_directories
     deploy_plugin_files

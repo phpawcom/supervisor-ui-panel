@@ -206,11 +206,11 @@ class LaravelAppDetector
 
     private function detectPhpBinary(string $cpanelUser): string
     {
-        // Try cPanel EA PHP paths first
+        // Try cPanel EA PHP paths — 8.4 first, then lower versions as fallback
         $candidates = [
+            "/opt/cpanel/ea-php84/root/usr/bin/php",
+            "/opt/cpanel/ea-php83/root/usr/bin/php",
             "/opt/cpanel/ea-php82/root/usr/bin/php",
-            "/opt/cpanel/ea-php81/root/usr/bin/php",
-            "/opt/cpanel/ea-php80/root/usr/bin/php",
             "/usr/bin/php",
             "/usr/local/bin/php",
         ];

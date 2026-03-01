@@ -78,7 +78,7 @@ supervisor-ui-panel/
 |-----------|---------|
 | OS | AlmaLinux 8/9, Rocky Linux 8/9, CloudLinux 7/8/9 |
 | cPanel | 108+ |
-| PHP | 8.2+ |
+| PHP | 8.4+ |
 | Supervisor | 4.0+ |
 | Composer | 2.x |
 
